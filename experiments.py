@@ -2,6 +2,7 @@ import nengo
 import nengo_spa as spa
 import numpy as np
 import random
+import math
 from abc import ABC, abstractmethod
 
 
@@ -44,10 +45,12 @@ def createTrials(n_blocks_per_operation, n_trials_per_digit, n_different_digits,
         return trials
 
 class AbstractXp(ABC):
-    def __init__(self, trial_length, number_of_learning_trials, trials):
+    def __init__(self, trial_length, number_of_learning_trials, trials, fixation, mask):
         self.trial_length = trial_length
         self.number_of_learning_trials = number_of_learning_trials
         self.trials = trials
+        self.fixation = fixation
+        self.mask = mask
 
     def __call__(self, t):
         t = round(t,4) - .001 # Avoid float problems
@@ -66,15 +69,15 @@ class AbstractXp(ABC):
         
         
 class Xp1(AbstractXp): # chronometric exploration   
-    def __init__(self, number_of_learning_trials=0, trials=None):
+    def __init__(self, number_of_learning_trials=0, trials=None, fixation="FIXATION"):
         if trials is None:
             trials = createTrials(10,5,4,3,True)
-        super().__init__(1.029, number_of_learning_trials, trials)
+        super().__init__(2.029, number_of_learning_trials, trials, fixation, None)
 
     def RETINA_input(self, t):
         trial, t_in_trial = self(t)
         if t_in_trial < 1:
-            return "FIXATION"
+            return self.fixation
         elif 1 < t_in_trial < 1.029:
             return trial.stimulus
         else:
