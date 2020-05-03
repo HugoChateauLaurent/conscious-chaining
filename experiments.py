@@ -6,28 +6,6 @@ import math
 from abc import ABC, abstractmethod
 
 
-class Button():
-    def __init__(self, SP_vectors, trial_length, dt=None, thr=.5, focus_length=1):
-        self.t_last_evt = -100
-        self.SP_vectors = SP_vectors
-        self.t_last_step = 0
-        self.dt = dt
-        self.thr = thr
-        self.trial_length = trial_length
-        self.focus_length = focus_length
-    
-    def __call__(self,t,x):
-        if not self.dt or t-self.dt > self.t_last_step:
-            self.t_last_step = t
-            if t//self.trial_length > self.t_last_evt//self.trial_length and t > (t//self.trial_length)*self.trial_length + self.focus_length:
-                for i in range(len(self.SP_vectors)):
-                    similarities = np.dot(self.SP_vectors,x)
-                    if np.dot(x,self.SP_vectors[i]) > self.thr:
-                        self.t_last_evt = t
-                        return i+1
-                        
-        return 0
-
 class Trial():
     def __init__(self, operation, stimulus):
         self.operation = operation
@@ -45,13 +23,15 @@ def createTrials(n_blocks_per_operation, n_trials_per_digit, n_different_digits,
         return trials
 
 class AbstractXp(ABC):
-    def __init__(self, trial_length, number_of_learning_trials, trials, fixation, mask, t_start):
+    def __init__(self, trial_length, number_of_learning_trials, trials, fixation, mask, t_start, stim_scale, fix_scale):
         self.trial_length = trial_length
         self.number_of_learning_trials = number_of_learning_trials
         self.trials = trials
         self.fixation = fixation
         self.mask = mask
         self.t_start = t_start
+        self.stim_scale = stim_scale
+        self.fix_scale = fix_scale
 
     def __call__(self, t):
         t = round(t,4) - .001 # Avoid float problems
@@ -72,33 +52,34 @@ class AbstractXp(ABC):
         
         
 class Xp1(AbstractXp): # chronometric exploration   
-    def __init__(self, number_of_learning_trials=0, trials=None, fixation="FIXATION", t_start=1):
+    def __init__(self, number_of_learning_trials=0, trials=None, fixation="FIXATION", t_start=1, stim_scale=.5, fix_scale=.25, stim_duration=.029):
         if trials is None:
             trials = createTrials(10,5,4,3,True)
-        super().__init__(2.029, number_of_learning_trials, trials, fixation, None, t_start)
+        self.stim_duration = stim_duration
+        super().__init__(2+stim_duration, number_of_learning_trials, trials, fixation, None, t_start, stim_scale, fix_scale)
 
     def RETINA_input(self, t):
         trial, t_in_trial = self(t)
         if t_in_trial < self.t_start:
-            return self.fixation
-        elif self.t_start < t_in_trial < self.t_start+.029:
-            return trial.stimulus
+            return str(self.fix_scale)+"*"+self.fixation
+        elif self.t_start < t_in_trial < self.t_start+self.stim_duration:
+            return str(self.stim_scale)+"*"+trial.stimulus
         else:
             return "0"
 
 class TestMasking(AbstractXp):
-    def __init__(self, SOA, number_of_learning_trials=0, trials=None, fixation="FIXATION", t_start=1):
+    def __init__(self, SOA, number_of_learning_trials=0, trials=None, fixation="FIXATION", t_start=1, stim_scale=.5, fix_scale=.25):
         self.SOA = SOA # SOA in [.016,.033,.083]
         if trials is None:
             trials = createTrials(10,5,4,3,True)
-        super().__init__(2.029, number_of_learning_trials, trials, fixation, None, t_start)
+        super().__init__(2.029, number_of_learning_trials, trials, fixation, None, t_start, stim_scale, fix_scale)
 
     def RETINA_input(self, t):
         trial, t_in_trial = self(t)
         if t_in_trial < self.t_start:
-            return self.fixation
+            return str(self.fix_scale)+"*"+self.fixation
         elif self.t_start < t_in_trial < self.t_start+.016:
-            return trial.stimulus
+            return str(self.stim_scale)+"*"+trial.stimulus
         elif self.t_start+self.SOA < t_in_trial < self.t_start+self.SOA+.150: # Masks during 150 ms after SOA (=stim + fixation)
             return "X"
         else:

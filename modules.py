@@ -1,5 +1,6 @@
 import nengo
 import nengo_spa as spa
+import numpy as np
 
 class Processor(spa.Network):
 
@@ -9,19 +10,17 @@ class Processor(spa.Network):
 		output_vocab, 
 		label,
 		AM_mapping,
-		filter_thr,
-		filter_mapping=None,
-		add_ON=True,
-		feedback=.85, 
-		feedback_synapse=.1,
-		AM_thr=.1, 
-		AM_cls=spa.ThresholdingAssocMem, 
+		feedback=.8, 
+		AM_thr=0, 
+		AM_cls=spa.WTAAssocMem, 
+		#AM_fn=lambda x:x,
 		npd_AM=50, 
-		broadcast_source=None,
+		sender=True,
+		receiver=True,
 		seed=None, 
 		add_to_container=None,
+		add_ON=True
 		):
-
 
 		super(Processor, self).__init__(label, seed, add_to_container, vocabs=None)
 		
@@ -29,42 +28,52 @@ class Processor(spa.Network):
 		if isinstance(AM_mapping,list):
 			AM_mapping = {k:k for k in AM_mapping}
 
-		if filter_mapping is None:
-			filter_mapping = {k:k for k in AM_mapping.keys()}
-		elif isinstance(filter_mapping,list):
-			filter_mapping = {k:k for k in filter_mapping}
-
 		self.label = label
-		self.sender = broadcast_source in ['GW','processors']
-
+		self.sender = sender
+		self.receiver = receiver
 		
-
-		self.input_state = spa.State(input_vocab, feedback=.8, feedback_synapse=.01, label=label+' input')
-
 		# Domain specific processing
-		if add_ON:
-			add_ON = "+ON"
-		else:
-			add_ON = ""
+		add_ON = "+SOURCE*"+self.label if add_ON else ""
 		self.AM = AM_cls(
 			threshold=AM_thr, 
 			input_vocab=input_vocab, 
+			output_vocab=output_vocab,
 			mapping={k:v+add_ON for k,v in AM_mapping.items()},
-			function=lambda x:x,
-			label='ADD',
+			#function=AM_fn,
+			label=self.label+' AM',
 			n_neurons = npd_AM
 		)
-		nengo.Connection(self.input_state.output, self.AM.input, synapse=.01)
-		self.input_state >> self.AM.input
+		for ens in self.AM.all_ensembles:
+			nengo.Connection(ens, ens, transform=feedback, synapse=.05)
+		self.input = self.AM.input
 
 		if self.sender	:
 			self.preconscious = self.AM.output
 			self.attention = spa.Scalar()
-			1/2 >> self.attention
+			.5 >> self.attention
+
+		if self.receiver :
+			self.receive = spa.Scalar()
 
 
-		if broadcast_source == 'GW':
-			self.broadcast_source = spa.Transcode(input_vocab=input_vocab, output_vocab=input_vocab, label=label+' broadcast')
-		elif broadcast_source == 'processors':
-			self.broadcast_source = self.AM.output
-
+class Button():
+    def __init__(self, SP_vectors, trial_length, dt=None, thr=.5, focus_length=1):
+        self.t_last_evt = -100
+        self.SP_vectors = SP_vectors
+        self.t_last_step = 0
+        self.dt = dt
+        self.thr = thr
+        self.trial_length = trial_length
+        self.focus_length = focus_length
+    
+    def __call__(self,t,x):
+        if not self.dt or t-self.dt > self.t_last_step:
+            self.t_last_step = t
+            if t//self.trial_length > self.t_last_evt//self.trial_length and t > (t//self.trial_length)*self.trial_length + self.focus_length:
+                for i in range(len(self.SP_vectors)):
+                    similarities = np.dot(self.SP_vectors,x)
+                    if np.dot(x,self.SP_vectors[i]) > self.thr:
+                        self.t_last_evt = t
+                        return i+1
+                        
+        return 0

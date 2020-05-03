@@ -67,6 +67,6 @@ with spa.Network() as model:
         conn.learning_rule_type = nengo.PES()
         nengo.Connection(error, conn.learning_rule)
         
-        
+print(model.n_neurons)
         
     
