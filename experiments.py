@@ -23,15 +23,12 @@ def createTrials(n_blocks_per_operation, n_trials_per_digit, n_different_digits,
         return trials
 
 class AbstractXp(ABC):
-    def __init__(self, trial_length, number_of_learning_trials, trials, fixation, mask, t_start, stim_scale, fix_scale):
+    def __init__(self, trial_length, number_of_learning_trials, trials, mask, t_start):
         self.trial_length = trial_length
         self.number_of_learning_trials = number_of_learning_trials
         self.trials = trials
-        self.fixation = fixation
         self.mask = mask
         self.t_start = t_start
-        self.stim_scale = stim_scale
-        self.fix_scale = fix_scale
 
     def __call__(self, t):
         t = round(t,4) - .001 # Avoid float problems
@@ -52,38 +49,48 @@ class AbstractXp(ABC):
         
         
 class Xp1(AbstractXp): # chronometric exploration   
-    def __init__(self, number_of_learning_trials=0, trials=None, fixation="FIXATION", t_start=1, stim_scale=.5, fix_scale=.25, stim_duration=.029):
+    def __init__(self, number_of_learning_trials=0, trials=None, t_start=1, stim_scale=1, fix_scale=1, stim_duration=.029):
         if trials is None:
             trials = createTrials(10,5,4,3,True)
         self.stim_duration = stim_duration
-        super().__init__(2+stim_duration, number_of_learning_trials, trials, fixation, None, t_start, stim_scale, fix_scale)
+        super().__init__(2+stim_duration, number_of_learning_trials, trials, None, t_start)
 
     def RETINA_input(self, t):
         trial, t_in_trial = self(t)
         if t_in_trial < self.t_start:
-            return str(self.fix_scale)+"*"+self.fixation
+            return "FIXATE"
         elif self.t_start < t_in_trial < self.t_start+self.stim_duration:
-            return str(self.stim_scale)+"*"+trial.stimulus
+            return trial.stimulus
         else:
             return "0"
 
 class TestMasking(AbstractXp):
-    def __init__(self, SOA, number_of_learning_trials=0, trials=None, fixation="FIXATION", t_start=1, stim_scale=.5, fix_scale=.25):
-        self.SOA = SOA # SOA in [.016,.033,.083]
+    def __init__(self, SOA, number_of_learning_trials=0, trials=None, t_start=1):
+        self.SOA = SOA # SOA in original study is in [.016,.033,.083]
         if trials is None:
             trials = createTrials(10,5,4,3,True)
-        super().__init__(2.029, number_of_learning_trials, trials, fixation, None, t_start, stim_scale, fix_scale)
+        super().__init__(2.029, number_of_learning_trials, trials, None, t_start)
 
     def RETINA_input(self, t):
-        trial, t_in_trial = self(t)
-        if t_in_trial < self.t_start:
-            return str(self.fix_scale)+"*"+self.fixation
-        elif self.t_start < t_in_trial < self.t_start+.016:
-            return str(self.stim_scale)+"*"+trial.stimulus
-        elif self.t_start+self.SOA < t_in_trial < self.t_start+self.SOA+.150: # Masks during 150 ms after SOA (=stim + fixation)
-            return "X"
-        else:
-            return "0"
+        if False: # Original study
+            trial, t_in_trial = self(t)
+            if t_in_trial < self.t_start:
+                return "FIXATE"
+            elif self.t_start < t_in_trial < self.t_start+.016:
+                return trial.stimulus
+            elif self.t_start+self.SOA < t_in_trial < self.t_start+self.SOA+.150: # Masks during 150 ms after SOA (=stim + fixation)
+                return "MASK"
+            else:
+                return "0"
+
+        else: # Stimulus shown during SOA duration, no blank between stimulus and mask
+            trial, t_in_trial = self(t)
+            if t_in_trial < self.t_start:
+                return "FIXATE"
+            elif self.t_start < t_in_trial < self.t_start+self.SOA:
+                return trial.stimulus
+            else:
+                return "0"
 
     
     
