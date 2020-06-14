@@ -1,3 +1,0 @@
-1- Add leak to integrator
-2- Maybe possible to find power of ADD2 with Fourier transform function:
-	https://www.nengo.ai/nengo/networks.html?highlight=integrator#nengo.networks.CircularConvolution

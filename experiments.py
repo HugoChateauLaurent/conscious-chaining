@@ -11,11 +11,46 @@ class Trial():
         self.operation = operation
         self.stimulus = stimulus
 
+    @property
+    def N(self):
+        return {'D2':2, 'D4':4, 'D6':6, 'D8':8}[self.stimulus]
+
+    @property
+    def target(self):
+        N = self.N
+        if self.operation == 'CHAINED_ADD':
+            N += 2
+        elif self.operation == 'CHAINED_SUB':
+            N -= 2
+        if N > 8:
+            N = 2
+        elif N < 2:
+            N = 8
+        return N
+
+    @property
+    def expected_action(self):
+        return 1 + int(self.target > 5) # 0: no action, 1: LESS, 2: MORE
+
+    @property
+    def congruent(self):
+        return 1 if (self.target > 5 and self.N > 5) or (self.target < 5 and self.N < 5) else -1
+    
+    @property
+    def stimulus_idx(self):
+        return {'D2':0, 'D4':1, 'D6':2, 'D8':3}[self.stimulus]
+
+    @property
+    def operation_idx(self):
+        return {'SIMPLE':0, 'CHAINED_ADD':1, 'CHAINED_SUB':2}[self.operation]
+    
+    
+
 def createTrials(n_blocks_per_operation, n_trials_per_digit, n_different_digits, n_different_operations, shuffle):
         trials = []
         for operation in ['SIMPLE', 'CHAINED_ADD', 'CHAINED_SUB'][:n_different_operations]:
             for i in range(n_blocks_per_operation*n_trials_per_digit):
-                for stimulus in ['TWO', 'FOUR', 'SIX', 'EIGHT'][:n_different_digits]:
+                for stimulus in ['D2', 'D4', 'D6', 'D8'][:n_different_digits]:
                     trials.append(Trial(operation, stimulus))
         if shuffle:
             random.shuffle(trials)
@@ -45,15 +80,19 @@ class AbstractXp(ABC):
         trial, t_in_trial = self(t)
         return trial.operation
 
+    @property 
+    def T(self):
+        return self.trial_length*len(self.trials)
+
 
         
         
 class Xp1(AbstractXp): # chronometric exploration   
-    def __init__(self, number_of_learning_trials=0, trials=None, t_start=1, stim_scale=1, fix_scale=1, stim_duration=.029):
+    def __init__(self, number_of_learning_trials=0, trials=None, t_start=1, stim_scale=1, fix_scale=1, stim_duration=.029, t_answer=1):
         if trials is None:
             trials = createTrials(10,5,4,3,True)
         self.stim_duration = stim_duration
-        super().__init__(2+stim_duration, number_of_learning_trials, trials, None, t_start)
+        super().__init__(t_start+stim_duration+t_answer, number_of_learning_trials, trials, None, t_start)
 
     def RETINA_input(self, t):
         trial, t_in_trial = self(t)
