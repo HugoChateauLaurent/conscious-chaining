@@ -1,0 +1,13 @@
+seed = 16
+backend = 'nengo_ocl'
+dt = 0.001
+neuron_type = 'default'
+n_neurons_scale = 1
+s_evidence = 20
+D = 96
+integrator_reset = True
+T = 0.2
+stimulus = 6
+n_samples = 1000
+
+mean_comparison = 0.7926631

@@ -5,6 +5,10 @@ import random
 import math
 from abc import ABC, abstractmethod
 
+def create_xp(n_blocks_per_operation, n_trials_per_digit, n_different_digits, n_different_operations, stim_duration, t_start, seed):
+    trials = createTrials(n_blocks_per_operation, n_trials_per_digit, n_different_digits, n_different_operations, shuffle=True, rng=np.random.RandomState(seed))
+    return Xp1(trials, stim_duration=stim_duration, t_start=t_start)
+
 
 class Trial():
     def __init__(self, operation, stimulus):
@@ -46,14 +50,17 @@ class Trial():
     
     
 
-def createTrials(n_blocks_per_operation, n_trials_per_digit, n_different_digits, n_different_operations, shuffle):
+def createTrials(n_blocks_per_operation, n_trials_per_digit, n_different_digits, n_different_operations, shuffle, rng):
         trials = []
         for operation in ['SIMPLE', 'CHAINED_ADD', 'CHAINED_SUB'][:n_different_operations]:
             for i in range(n_blocks_per_operation*n_trials_per_digit):
                 for stimulus in ['D2', 'D4', 'D6', 'D8'][:n_different_digits]:
                     trials.append(Trial(operation, stimulus))
         if shuffle:
-            random.shuffle(trials)
+            if rng is None:
+                print("Warning: setting random seed")
+                rng = np.random.RandomState()
+            rng.shuffle(trials)
 
         return trials
 
@@ -88,9 +95,7 @@ class AbstractXp(ABC):
         
         
 class Xp1(AbstractXp): # chronometric exploration   
-    def __init__(self, number_of_learning_trials=0, trials=None, t_start=1, stim_scale=1, fix_scale=1, stim_duration=.029, t_answer=1):
-        if trials is None:
-            trials = createTrials(10,5,4,3,True)
+    def __init__(self, trials, number_of_learning_trials=0, t_start=1, stim_scale=1, fix_scale=1, stim_duration=.029, t_answer=1, rng=None):
         self.stim_duration = stim_duration
         super().__init__(t_start+stim_duration+t_answer, number_of_learning_trials, trials, None, t_start)
 
@@ -104,10 +109,8 @@ class Xp1(AbstractXp): # chronometric exploration
             return "0"
 
 class TestMasking(AbstractXp):
-    def __init__(self, SOA, number_of_learning_trials=0, trials=None, t_start=1):
+    def __init__(self, SOA, trials, number_of_learning_trials=0, t_start=1):
         self.SOA = SOA # SOA in original study is in [.016,.033,.083]
-        if trials is None:
-            trials = createTrials(10,5,4,3,True)
         super().__init__(2.029, number_of_learning_trials, trials, None, t_start)
 
     def RETINA_input(self, t):

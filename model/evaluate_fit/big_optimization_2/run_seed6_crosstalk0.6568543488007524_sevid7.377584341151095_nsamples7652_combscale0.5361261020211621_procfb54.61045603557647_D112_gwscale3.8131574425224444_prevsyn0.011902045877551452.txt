@@ -1,0 +1,23 @@
+seed = 6
+backend = 'nengo_ocl'
+dt = 0.001
+neuron_type = 'default'
+n_neurons_scale = 1
+n_neurons_scale_combined = 0.5361261020211621
+s_crosstalk = 0.6568543488007524
+s_evidence = 7.377584341151095
+n_samples = 7652
+t_senso = 0
+vocab = <nengo_spa.vocabulary.Vocabulary object at 0x7ff47c5466d0>
+xp = <experiments.Xp1 object at 0x7ff4d55fded0>
+proc_feedback = 54.61045603557647
+proc_feedback_synapse = 0.005
+prev_feedback_synapse = 0.011902045877551452
+GW_feedback = 1
+GW_threshold = 0.5
+GW_scale = 3.8131574425224444
+BG_thr = 0.1
+BG_bias = 0.5
+integrator_reset = False
+
+data = <data.Data object at 0x7ff47c904a50>

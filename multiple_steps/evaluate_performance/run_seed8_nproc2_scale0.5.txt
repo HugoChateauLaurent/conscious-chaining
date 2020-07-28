@@ -1,0 +1,16 @@
+seed = 8
+backend = 'nengo_ocl'
+dt = 0.001
+neuron_type = 'default'
+n_neurons_scale = 0.5
+vocab = <nengo_spa.vocabulary.Vocabulary object at 0x7f3f0ab38790>
+n_ADD_proc = 2
+proc_feedback = 0.9
+proc_feedback_synapse = 0.005
+GW_feedback = 1
+GW_threshold = 0.5
+GW_scale = 20
+BG_thr = 0.1
+BG_bias = 0.5
+
+acc = 1
