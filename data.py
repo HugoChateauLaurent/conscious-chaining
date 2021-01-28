@@ -36,14 +36,6 @@ class Data():
         q = q / q.sum()
 
         return np.sum(np.where(p != 0, p * np.log(p / q), 0))
-
-    @property
-    def main(self):
-        return self.df.loc[self.df['ses'] == 2]
-    
-    @property
-    def training(self):
-        return self.df.loc[self.df['ses'] == 1]
     
     @property
     def exclusion(self):
@@ -97,21 +89,24 @@ class Data():
                 plt.figure(figsize=(4,3))
 
             # plt.subplot(1,2,1)
-            plt.errorbar(self.stimuli, [np.median(s) for s in self.RTs(self.simple)], [sem(s) for s in self.RTs(self.simple)], color='black', capsize=3, fmt="o", markerfacecolor="white", linestyle='-')
-            handles, labels = plt.gca().get_legend_handles_labels()
+            handles = []
             if plot_humans:
                 plt.errorbar(humans.stimuli, [np.median(s) for s in humans.RTs(humans.simple)], [sem(s) for s in humans.RTs(humans.simple)], color='gray', capsize=3, fmt="o", markerfacecolor="white", linestyle='-')
 
                 # add model and human to the legend
                 model_patch = mpatches.Patch(color='black', label='model')
                 humans_patch = mpatches.Patch(color='gray', label='humans')
-                handles = [model_patch, humans_patch] + handles
+                handles = [model_patch, humans_patch]
+            plt.errorbar(self.stimuli, [np.median(s) for s in self.RTs(self.simple)], [sem(s) for s in self.RTs(self.simple)], color='black', capsize=3, fmt="o", markerfacecolor="white", linestyle='-')
+            handles_model, labels = plt.gca().get_legend_handles_labels()
+            handles += handles_model
+            
             
             plt.legend(handles=handles, ncol=2)
 
             
             
-            plt.ylabel('Median reaction times (ms)')
+            plt.ylabel('Median reaction times (ms)', size=12)
             ax = plt.gca()
             ax.spines['right'].set_color('none')
             ax.spines['top'].set_color('none')
@@ -121,7 +116,7 @@ class Data():
                 plt.xticks([])
             else:
                 plt.xticks(self.stimuli)
-                plt.xlabel('Stimuli')
+                plt.xlabel('Stimuli', size=12)
 
             
 
@@ -134,13 +129,17 @@ class Data():
 
         if errorates:
             if show:
-                plt.figure(figsize=(4,3))
+                plt.figure(figsize=(4,1))
 
             # plt.subplot(1,2,2)
-            plt.bar(self.stimuli, self.error_rates(self.simple), color='black')
+            bar_width = .5
+            bar_x_offset = bar_width #+ .1
+            plt.bar(self.stimuli-.5*bar_x_offset, self.error_rates(self.simple), color='black', width=bar_width)
+            if plot_humans:
+                plt.bar(humans.stimuli+.5*bar_x_offset, humans.error_rates(humans.simple), color='gray', width=bar_width)
             plt.xticks(self.stimuli)
-            plt.xlabel('Stimuli')
-            plt.ylabel('Error rates (%)')
+            plt.xlabel('Stimuli', size=12)
+            plt.ylabel('Error rates (%)', size=12)
             ax = plt.gca()
             ax.yaxis.set_label_position("right")
             ax.yaxis.tick_right()
@@ -160,12 +159,7 @@ class Data():
             if show:
                 plt.figure(figsize=(4,3))
 
-            plt.plot(self.stimuli, [np.median(s) for s in self.RTs(self.congruent)], linestyle=(0, (5, 5)), color='black', label='congruent')
-            plt.plot(self.stimuli, [np.median(s) for s in self.RTs(self.incongruent)], linestyle='dotted', color='black', label='incongruent')
-            plt.errorbar(self.stimuli, [np.median(s) for s in self.RTs(self.chained_add)], [sem(s) for s in self.RTs(self.chained_add)], color='black', ls='none', capsize=3, fmt='^', label='add')
-            plt.errorbar(self.stimuli, [np.median(s) for s in self.RTs(self.chained_sub)], [sem(s) for s in self.RTs(self.chained_sub)], color='black', ls='none', capsize=3, fmt='s', label='sub', markerfacecolor='white')
-            handles, labels = plt.gca().get_legend_handles_labels()
-
+            handles = []
             if plot_humans:
                 plt.plot(humans.stimuli, [np.median(s) for s in humans.RTs(humans.congruent)], linestyle=(0, (5, 5)), color='gray')
                 plt.plot(humans.stimuli, [np.median(s) for s in humans.RTs(humans.incongruent)], linestyle='dotted', color='gray')
@@ -175,11 +169,20 @@ class Data():
                 # add model and human to the legend
                 model_patch = mpatches.Patch(color='black', label='model')
                 humans_patch = mpatches.Patch(color='gray', label='humans')
-                handles = [model_patch, humans_patch] + handles
+                handles = [model_patch, humans_patch]
+
+            plt.plot(self.stimuli, [np.median(s) for s in self.RTs(self.congruent)], linestyle=(0, (5, 5)), color='black', label='congruent')
+            plt.plot(self.stimuli, [np.median(s) for s in self.RTs(self.incongruent)], linestyle='dotted', color='black', label='incongruent')
+            plt.errorbar(self.stimuli, [np.median(s) for s in self.RTs(self.chained_add)], [sem(s) for s in self.RTs(self.chained_add)], color='black', ls='none', capsize=3, fmt='^', label='add')
+            plt.errorbar(self.stimuli, [np.median(s) for s in self.RTs(self.chained_sub)], [sem(s) for s in self.RTs(self.chained_sub)], color='black', ls='none', capsize=3, fmt='s', label='sub', markerfacecolor='white')
+            handles_model, labels = plt.gca().get_legend_handles_labels()
+            handles += handles_model
+
+            
             
             plt.legend(handles=handles, ncol=3)
-            plt.xlabel('Stimuli')
-            plt.ylabel('Median reaction times (ms)')
+            plt.xlabel('Stimuli', size=12)
+            plt.ylabel('Median reaction times (ms)', size=12)
             ax = plt.gca()
             ax.spines['right'].set_color('none')
             ax.spines['top'].set_color('none')
@@ -189,7 +192,7 @@ class Data():
                 plt.xticks([])
             else:
                 plt.xticks(self.stimuli)
-                plt.xlabel('Stimuli')
+                plt.xlabel('Stimuli', size=12)
 
             if save_file is not None:
                 plt.savefig(save_file+'_chained_rts.svg')
@@ -200,20 +203,29 @@ class Data():
 
         if errorates:
             if show:
-                plt.figure(figsize=(4,3))
-            bar_width = .5
-            bar_x_offset = bar_width + .1
-            plt.bar(self.stimuli, self.error_rates(self.chained_sub), width=bar_width, label='sub', color='white', edgecolor='black')
-            plt.bar(self.stimuli+bar_x_offset, self.error_rates(self.chained_add), width=bar_width, label='add', color='black')
+                plt.figure(figsize=(4,1))
+            bar_width = .25
+            bar_x_offset = bar_width #+ .1
+            plt.bar(self.stimuli-1.5*bar_x_offset, self.error_rates(self.chained_sub), width=bar_width, label='sub', color='white', edgecolor='black')
+            plt.bar(self.stimuli-.5*bar_x_offset, self.error_rates(self.chained_add), width=bar_width, label='add', color='black')
 
-            congruent_x_offset = [bar_x_offset if s in [2,6] else 0 for s in self.stimuli]
-            incongruent_x_offset = [bar_x_offset if s not in [2,6] else 0 for s in self.stimuli]
+            congruent_x_offset = np.asarray([-.5*bar_x_offset if s in [2,6] else -1.5*bar_x_offset for s in self.stimuli])
+            incongruent_x_offset = np.asarray([-.5*bar_x_offset if s not in [2,6] else -1.5*bar_x_offset for s in self.stimuli])
             plt.plot(self.stimuli + congruent_x_offset, self.error_rates(self.congruent), linestyle=(0, (5, 5)), color='black', label='congruent')
             plt.plot(self.stimuli + incongruent_x_offset, self.error_rates(self.incongruent), linestyle='dotted', color='black', label='incongruent')
 
+            if plot_humans:
+                congruent_x_offset = np.asarray([1.5*bar_x_offset if s in [2,6] else .5*bar_x_offset for s in self.stimuli])
+                incongruent_x_offset = np.asarray([1.5*bar_x_offset if s not in [2,6] else .5*bar_x_offset for s in self.stimuli])
+                plt.bar(humans.stimuli+.5*bar_x_offset, humans.error_rates(humans.chained_sub), width=bar_width, label='sub', color='white', edgecolor='gray')
+                plt.bar(humans.stimuli+1.5*bar_x_offset, humans.error_rates(humans.chained_add), width=bar_width, label='add', color='gray')
+                plt.plot(humans.stimuli + congruent_x_offset, humans.error_rates(humans.congruent), linestyle=(0, (5, 5)), color='gray', label='congruent')
+                plt.plot(humans.stimuli + incongruent_x_offset, humans.error_rates(humans.incongruent), linestyle='dotted', color='gray', label='incongruent')
+
+
             plt.xticks(self.stimuli)
-            plt.xlabel('Stimuli')
-            plt.ylabel('Error rates (%)')
+            plt.xlabel('Stimuli', size=12)
+            plt.ylabel('Error rates (%)', size=12)
             ax = plt.gca()
             ax.yaxis.set_label_position("right")
             ax.yaxis.tick_right()
@@ -265,64 +277,8 @@ class Data():
 
         return error
 
-    def rmse_fitness_error(self, compare_errorrates, compare_RTs, tasks): # tasks should be range(N_DIFFERENT_OPERATIONS)
-        humans = Data(SackurData().exclusion)
-        errorrate_errors = []
-        RT_errors = []
-
-        if compare_errorrates:
-            errorrates_to_compare = [
-                [
-                    self.accuracies(self.simple),
-                    self.accuracies(self.chained_add),
-                    self.accuracies(self.chained_sub),
-                ],
-
-                [
-                    humans.accuracies(humans.simple),
-                    humans.accuracies(humans.chained_add),
-                    humans.accuracies(humans.chained_sub),
-                ]
-            ]
-
-        if compare_RTs:
-            RTs_to_compare = [
-                [
-                    self.RTs(self.simple), 
-                    self.RTs(self.chained_add), 
-                    self.RTs(self.chained_sub)
-                ],
-
-                [
-                    humans.RTs(humans.simple), 
-                    humans.RTs(humans.chained_add), 
-                    humans.RTs(humans.chained_sub)
-                ]
-            ]
-
-        for i in tasks:
-
-            if compare_errorrates:
-                model_data = errorrates_to_compare[0][i]
-                humans_data = errorrates_to_compare[1][i]
-                for digit in range(4):
-                    humans_mean = np.mean(humans_data[digit])
-                    for data in model_data[digit]:
-                        errorrate_errors.append((humans_mean - data)**2)
-
-            if compare_RTs:
-                model_data = RTs_to_compare[0][i]
-                humans_data = RTs_to_compare[1][i]
-                for digit in range(4):
-                    humans_mean = np.mean(humans_data[digit])
-                    for data in model_data[digit]:
-                        RT_errors.append((humans_mean - data)**2)
-
-        return np.sqrt(np.mean(errorrate_errors+RT_errors)), errorrate_errors, RT_errors
-
     def mean_differences_error(self, compare_errorrates, compare_RTs, tasks): # tasks should be range(N_DIFFERENT_OPERATIONS)
 
-        print('compare error rates:', compare_errorrates)
         humans = Data(SackurData().exclusion)
         errorrate_errors = []
         RT_errors = []
@@ -369,85 +325,19 @@ class Data():
                 model_data = RTs_to_compare[0][i]
                 humans_data = RTs_to_compare[1][i]
                 for digit in range(4):
-                    humans_mean = np.mean(humans_data[digit])
-                    model_mean = np.mean(model_data[digit])
-                    if np.isnan(model_mean):
-                        model_mean = 2000 # arbitrary
-                    RT_errors.append((humans_mean - model_mean)**2)
+                    humans_median = np.median(humans_data[digit])
+                    model_median = np.median(model_data[digit])
+                    if np.isnan(model_median):
+                        model_median = 2000 # arbitrary
+                    RT_errors.append((humans_median - model_median)**2)
 
         error = np.sqrt(np.mean(errorrate_errors+RT_errors))
         return error
-
-    # def custom_error(self, compare_errorrates, compare_RTs, tasks): # tasks should be range(N_DIFFERENT_OPERATIONS)
-    #     humans = Data(SackurData().exclusion)
-
-    #     errorrate_mean_differences = []
-    #     rt_mean_differences = []
-
-    #     if compare_errorrates:
-    #         errorrates_to_compare = [
-    #             [
-    #                 self.accuracies(self.simple),
-    #                 self.accuracies(self.chained_add),
-    #                 self.accuracies(self.chained_sub),
-    #                 self.accuracies(self.congruent),
-    #                 self.accuracies(self.incongruent),
-    #             ],
-
-    #             [
-    #                 humans.accuracies(humans.simple),
-    #                 humans.accuracies(humans.chained_add),
-    #                 humans.accuracies(humans.chained_sub),
-    #                 humans.accuracies(humans.congruent),
-    #                 humans.accuracies(humans.incongruent),
-    #             ]
-    #         ]
-
-    #     if compare_RTs:
-    #         RTs_to_compare = [
-    #             [
-    #                 self.RTs(self.simple), 
-    #                 self.RTs(self.chained_add), 
-    #                 self.RTs(self.chained_sub)
-    #                 self.RTs(self.congruent)
-    #                 self.RTs(self.incongruent)
-    #             ],
-
-    #             [
-    #                 humans.RTs(humans.simple), 
-    #                 humans.RTs(humans.chained_add), 
-    #                 humans.RTs(humans.chained_sub)
-    #                 humans.RTs(humans.congruent)
-    #                 humans.RTs(humans.incongruent)
-    #             ]
-    #         ]
-
-    #     for i in tasks:
-
-    #         if compare_errorrates:
-    #             model_data = errorrates_to_compare[0][i]
-    #             humans_data = errorrates_to_compare[1][i]
-    #             for digit in range(4):
-    #                 humans_mean = np.mean(humans_data[digit])
-    #                 model = np.mean(model_data[digit])
-
-    #                 for data in model_data[digit]:
-    #                     errorrate_errors.append((humans_mean - data)**2)
-
-    #         if compare_RTs:
-    #             model_data = RTs_to_compare[0][i]
-    #             humans_data = RTs_to_compare[1][i]
-    #             for digit in range(4):
-    #                 humans_mean = np.mean(humans_data[digit])
-    #                 for data in model_data[digit]:
-    #                     RT_errors.append((humans_mean - data)**2)
-
-    #     return np.sqrt(np.mean(errorrate_errors+RT_errors)), errorrate_errors, RT_errors
     
 
 class SackurData(Data):
-    def __init__(self):
-        super().__init__(pyreadr.read_r('../sackur_data/exp1.R')['data'])
+    def __init__(self, directory='..'):
+        super().__init__(pyreadr.read_r(directory+'/sackur_data/exp1.R')['data'])
 
 
 

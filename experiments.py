@@ -5,12 +5,15 @@ import random
 import math
 from abc import ABC, abstractmethod
 
-def create_xp(n_blocks_per_operation, n_trials_per_digit, n_different_digits, n_different_operations, stim_duration, t_start, seed):
-    trials = createTrials(n_blocks_per_operation, n_trials_per_digit, n_different_digits, n_different_operations, shuffle=True, rng=np.random.RandomState(seed))
-    return Xp1(trials, stim_duration=stim_duration, t_start=t_start)
+def create_xp(xp, n_blocks_per_operation, n_trials_per_digit, n_different_digits, n_different_operations, stim_duration, t_start, t_answer, seed, SOA=None):
+    trials = createTrials(xp, n_blocks_per_operation, n_trials_per_digit, n_different_digits, n_different_operations, shuffle=True, rng=np.random.RandomState(seed))
+    if xp == 1:
+        return Xp1(trials, stim_duration=stim_duration, t_start=t_start, t_answer=t_answer)
+    elif xp == 3:
+        return Xp3(trials, prime_duration=stim_duration, t_start=t_start, t_answer=t_answer, SOA=SOA)
 
 
-class Trial():
+class Xp1Trial():
     def __init__(self, operation, stimulus):
         self.operation = operation
         self.stimulus = stimulus
@@ -33,6 +36,41 @@ class Trial():
         return N
 
     @property
+    def addend(self):
+        if self.operation == 'CHAINED_ADD':
+            return 'D2'
+        elif self.operation == 'CHAINED_SUB':
+            return '~D2'
+        else:
+            return '1'
+    @property
+    def get_instructions(self):
+        if self.operation in ['CHAINED_ADD', 'CHAINED_SUB']:
+            return '\
+                D1*GET_V +\
+                D2*GET_ADD +\
+                D3*GET_COM \
+            '
+        else:
+            return '\
+                D1*GET_V +\
+                D2*GET_COM \
+            '
+    @property
+    def set_instructions(self):
+        if self.operation in ['CHAINED_ADD', 'CHAINED_SUB']:
+            return '\
+                D2*SET_ADD +\
+                D3*SET_COM +\
+                D4*SET_M \
+            '
+        else:
+            return '\
+                D2*SET_COM +\
+                D3*SET_M \
+            '
+    
+    @property    
     def expected_action(self):
         return 1 + int(self.target > 5) # 0: no action, 1: LESS, 2: MORE
 
@@ -47,15 +85,24 @@ class Trial():
     @property
     def operation_idx(self):
         return {'SIMPLE':0, 'CHAINED_ADD':1, 'CHAINED_SUB':2}[self.operation]
-    
+
+class Xp3Trial(Xp1Trial):
+    def __init__(self, operation, prime, target):
+        self.operation = operation
+        self.prime = prime
+        super().__init__(operation, target)    
     
 
-def createTrials(n_blocks_per_operation, n_trials_per_digit, n_different_digits, n_different_operations, shuffle, rng):
+def createTrials(xp, n_blocks_per_operation, n_trials_per_digit, n_different_digits, n_different_operations, shuffle, rng):
         trials = []
         for operation in ['SIMPLE', 'CHAINED_ADD', 'CHAINED_SUB'][:n_different_operations]:
             for i in range(n_blocks_per_operation*n_trials_per_digit):
                 for stimulus in ['D2', 'D4', 'D6', 'D8'][:n_different_digits]:
-                    trials.append(Trial(operation, stimulus))
+                    if xp == 1:
+                        trials.append(Xp1Trial(operation, stimulus))
+                    elif xp == 3:
+                        for prime in ['D2', 'D4', 'D6', 'D8'][:n_different_digits]:
+                            trials.append(Xp3Trial(operation, prime, stimulus))
         if shuffle:
             if rng is None:
                 print("Warning: setting random seed")
@@ -65,9 +112,8 @@ def createTrials(n_blocks_per_operation, n_trials_per_digit, n_different_digits,
         return trials
 
 class AbstractXp(ABC):
-    def __init__(self, trial_length, number_of_learning_trials, trials, mask, t_start):
+    def __init__(self, trial_length, trials, mask, t_start):
         self.trial_length = trial_length
-        self.number_of_learning_trials = number_of_learning_trials
         self.trials = trials
         self.mask = mask
         self.t_start = t_start
@@ -80,68 +126,83 @@ class AbstractXp(ABC):
         return trial, t_in_trial
 
     @abstractmethod
-    def RETINA_input(self, t):
+    def RETINA_input(self,t,x):
         pass
 
-    def G_input(self, t):
+    # def INSTRUCTIONS_input(self,t,x):
+    #     trial, t_in_trial = self(t)
+    #     return trial.instructions
+    def GET_INSTRUCTIONS_input(self,t,x):
         trial, t_in_trial = self(t)
-        return trial.operation
+        return trial.get_instructions
+    def SET_INSTRUCTIONS_input(self,t,x):
+        trial, t_in_trial = self(t)
+        return trial.set_instructions
+    def ADDEND_input(self,t,x):
+        trial, t_in_trial = self(t)
+        return trial.addend
 
     @property 
     def T(self):
         return self.trial_length*len(self.trials)
 
-
-        
-        
 class Xp1(AbstractXp): # chronometric exploration   
-    def __init__(self, trials, number_of_learning_trials=0, t_start=1, stim_scale=1, fix_scale=1, stim_duration=.029, t_answer=1, rng=None):
+    def __init__(self, trials, t_start=1, stim_duration=.029, t_answer=1, rng=None):
         self.stim_duration = stim_duration
-        super().__init__(t_start+stim_duration+t_answer, number_of_learning_trials, trials, None, t_start)
+        super().__init__(t_start+stim_duration+t_answer, trials, None, t_start)
 
-    def RETINA_input(self, t):
+    def RETINA_input(self,t,x):
         trial, t_in_trial = self(t)
         if t_in_trial < self.t_start:
             return "FIXATE"
-        elif self.t_start < t_in_trial < self.t_start+self.stim_duration:
+        elif t_in_trial < self.t_start+self.stim_duration:
             return trial.stimulus
         else:
             return "0"
-
-class TestMasking(AbstractXp):
-    def __init__(self, SOA, trials, number_of_learning_trials=0, t_start=1):
-        self.SOA = SOA # SOA in original study is in [.016,.033,.083]
-        super().__init__(2.029, number_of_learning_trials, trials, None, t_start)
-
-    def RETINA_input(self, t):
-        if False: # Original study
-            trial, t_in_trial = self(t)
-            if t_in_trial < self.t_start:
-                return "FIXATE"
-            elif self.t_start < t_in_trial < self.t_start+.016:
-                return trial.stimulus
-            elif self.t_start+self.SOA < t_in_trial < self.t_start+self.SOA+.150: # Masks during 150 ms after SOA (=stim + fixation)
-                return "MASK"
-            else:
-                return "0"
-
-        else: # Stimulus shown during SOA duration, no blank between stimulus and mask
-            trial, t_in_trial = self(t)
-            if t_in_trial < self.t_start:
-                return "FIXATE"
-            elif self.t_start < t_in_trial < self.t_start+self.SOA:
-                return trial.stimulus
-            else:
-                return "0"
-
-    
-    
-class Xp2(AbstractXp): # cued-response
-    pass    
+        
+        
 class Xp3(AbstractXp): # priming
-    pass    
-class Xp4(AbstractXp): # masking
-    pass
-    
+    def __init__(self, trials, t_start=1, prime_duration=.029, SOA=.3, t_answer=1, rng=None):
+        self.prime_duration = prime_duration
+        self.SOA = SOA
+        super().__init__(t_start+prime_duration+SOA+t_answer, trials, None, t_start)
+
+    def RETINA_input(self,t,x):
+        trial, t_in_trial = self(t)
+        if t_in_trial < self.t_start:
+            return "FIXATE"
+        elif t_in_trial < self.t_start+self.prime_duration:
+            return trial.prime
+        elif t_in_trial < self.t_start+self.prime_duration+self.SOA:
+            return "0"
+        else:
+            return trial.stimulus
+
+# class TestMasking(AbstractXp):
+#     def __init__(self, SOA, trials, t_start=1):
+#         self.SOA = SOA # SOA in original study is in [.016,.033,.083]
+#         super().__init__(2.029, trials, None, t_start)
+
+#     def RETINA_input(self,t,x):
+#         if False: # Original study
+#             trial, t_in_trial = self(t)
+#             if t_in_trial < self.t_start:
+#                 return "FIXATE"
+#             elif self.t_start < t_in_trial < self.t_start+.016:
+#                 return trial.stimulus
+#             elif self.t_start+self.SOA < t_in_trial < self.t_start+self.SOA+.150: # Masks during 150 ms after SOA (=stim + fixation)
+#                 return "MASK"
+#             else:
+#                 return "0"
+
+#         else: # Stimulus shown during SOA duration, no blank between stimulus and mask
+#             trial, t_in_trial = self(t)
+#             if t_in_trial < self.t_start:
+#                 return "FIXATE"
+#             elif self.t_start < t_in_trial < self.t_start+self.SOA:
+#                 return trial.stimulus
+#             else:
+#                 return "0"
+
 
     
