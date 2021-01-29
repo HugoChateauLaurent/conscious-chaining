@@ -44,31 +44,48 @@ class Xp1Trial():
         else:
             return '1'
     @property
-    def get_instructions(self):
+    def instructions(self):
         if self.operation in ['CHAINED_ADD', 'CHAINED_SUB']:
             return '\
-                D1*GET_V +\
-                D2*GET_ADD +\
-                D3*GET_COM \
+                D1 * (GET_V) +\
+                D2 * (GET_ADD + SET_ADD) +\
+                D3 * (GET_COM + SET_COM) + \
+                D4 * (SET_M) \
             '
         else:
             return '\
-                D1*GET_V +\
-                D2*GET_COM \
+                D1 * (GET_V) +\
+                D2 * (GET_COM + SET_COM) + \
+                D3 * (SET_M) \
             '
-    @property
-    def set_instructions(self):
-        if self.operation in ['CHAINED_ADD', 'CHAINED_SUB']:
-            return '\
-                D2*SET_ADD +\
-                D3*SET_COM +\
-                D4*SET_M \
-            '
-        else:
-            return '\
-                D2*SET_COM +\
-                D3*SET_M \
-            '
+
+    # @property
+    # def get_instructions(self):
+    #     if self.operation in ['CHAINED_ADD', 'CHAINED_SUB']:
+    #         return '\
+    #             D1*GET_V +\
+    #             D2*GET_ADD +\
+    #             D3*GET_COM \
+    #         '
+    #     else:
+    #         return '\
+    #             D1*GET_V +\
+    #             D2*GET_COM \
+    #         '
+
+    # @property
+    # def set_instructions(self):
+    #     if self.operation in ['CHAINED_ADD', 'CHAINED_SUB']:
+    #         return '\
+    #             D2*SET_ADD +\
+    #             D3*SET_COM +\
+    #             D4*SET_M \
+    #         '
+    #     else:
+    #         return '\
+    #             D2*SET_COM +\
+    #             D3*SET_M \
+    #         '
     
     @property    
     def expected_action(self):
@@ -129,15 +146,15 @@ class AbstractXp(ABC):
     def RETINA_input(self,t,x):
         pass
 
-    # def INSTRUCTIONS_input(self,t,x):
+    def INSTRUCTIONS_input(self,t,x):
+        trial, t_in_trial = self(t)
+        return trial.instructions
+    # def GET_INSTRUCTIONS_input(self,t,x):
     #     trial, t_in_trial = self(t)
-    #     return trial.instructions
-    def GET_INSTRUCTIONS_input(self,t,x):
-        trial, t_in_trial = self(t)
-        return trial.get_instructions
-    def SET_INSTRUCTIONS_input(self,t,x):
-        trial, t_in_trial = self(t)
-        return trial.set_instructions
+    #     return trial.get_instructions
+    # def SET_INSTRUCTIONS_input(self,t,x):
+    #     trial, t_in_trial = self(t)
+    #     return trial.set_instructions
     def ADDEND_input(self,t,x):
         trial, t_in_trial = self(t)
         return trial.addend
