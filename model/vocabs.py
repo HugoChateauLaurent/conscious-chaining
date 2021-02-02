@@ -14,26 +14,22 @@ def key_range(start, stop, step=1):
 		digits.append('D'+str(i)+'='+digits[-1].split('=')[0].split('.')[0]+'*D'+str(step)) # D_n = D_{n-step}*D_{step}
 	return digits
 
-def create_vocab(D, keys, rng):
-	vocab = spa.Vocabulary(int(D), pointer_gen=rng)
+def create_vocab(D, keys, rng=None):
+	vocab = spa.Vocabulary(int(D), pointer_gen=rng, max_similarity=0)
 	if type(keys) is list:
 		vocab.populate(';'.join(keys))
 	else:
 		vocab.populate(keys)
 	return vocab
 
-def create_vocabs(D, seed):
+def create_vocabs(D_GW, D_PRIM, seed=None):
 	vocabs = {}
 	rng = np.random.RandomState(seed)
 
-	compare_keys 					= 'MORE ; LESS'
-	PRIM_keys 						= 'GET_V ; GET_COM ; GET_ADD ; SET_COM ; SET_ADD ; SET_M'
-	even_digit_keys					= key_range(2,10,2)
-	digit_keys 						= key_range(1,11,1) + ['D0=D1*~D1']
-	instructions_keys				= [PRIM_keys] + digit_keys
-	vision_keys 					= digit_keys + ['FIXATE'] # even_digit_keys + ['FIXATE']
-	GW_keys 						= vision_keys + [compare_keys]
+	GW_keys 				= ['MORE ; LESS ; FIXATE'] + key_range(2,12,2) + ['D0=D2*~D2']
+	PRIM_keys 				= ['GET_COM ; GET_ADD ; SET_COM ; SET_ADD ; SET_M'] + key_range(1,5,1)
 
+	vocabs['GW']				= create_vocab(D_GW, GW_keys, rng)
+	vocabs['PRIM']				= create_vocab(D_PRIM, PRIM_keys, rng)
 
-	vocabs['big vocab']				= create_vocab(D, [compare_keys]+[PRIM_keys]+digit_keys+['FIXATE'], rng)
 	return vocabs

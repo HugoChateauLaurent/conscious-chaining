@@ -5,8 +5,8 @@ import random
 import math
 from abc import ABC, abstractmethod
 
-def create_xp(xp, n_blocks_per_operation, n_trials_per_digit, n_different_digits, n_different_operations, stim_duration, t_start, t_answer, seed, SOA=None):
-    trials = createTrials(xp, n_blocks_per_operation, n_trials_per_digit, n_different_digits, n_different_operations, shuffle=True, rng=np.random.RandomState(seed))
+def create_xp(xp, n_blocks_per_operation, n_trials_per_digit, n_different_digits, n_different_operations, stim_duration, t_start, t_answer, seed, SOA=None, shuffle=True):
+    trials = createTrials(xp, n_blocks_per_operation, n_trials_per_digit, n_different_digits, n_different_operations, shuffle=shuffle, rng=np.random.RandomState(seed))
     if xp == 1:
         return Xp1(trials, stim_duration=stim_duration, t_start=t_start, t_answer=t_answer)
     elif xp == 3:
@@ -47,46 +47,16 @@ class Xp1Trial():
     def instructions(self):
         if self.operation in ['CHAINED_ADD', 'CHAINED_SUB']:
             return '\
-                D1 * (GET_V) +\
-                D2 * (GET_ADD + SET_ADD) +\
-                D3 * (GET_COM + SET_COM) + \
-                D4 * (SET_M) \
+                D2 * (GET_ADD   + SET_ADD) +\
+                D3 * (GET_COM   + SET_COM) + \
+                D4 * SET_M \
             '
         else:
             return '\
-                D1 * (GET_V) +\
-                D2 * (GET_COM + SET_COM) + \
-                D3 * (SET_M) \
+                D2 * (GET_COM   + SET_COM) + \
+                D3 * SET_M \
             '
 
-    # @property
-    # def get_instructions(self):
-    #     if self.operation in ['CHAINED_ADD', 'CHAINED_SUB']:
-    #         return '\
-    #             D1*GET_V +\
-    #             D2*GET_ADD +\
-    #             D3*GET_COM \
-    #         '
-    #     else:
-    #         return '\
-    #             D1*GET_V +\
-    #             D2*GET_COM \
-    #         '
-
-    # @property
-    # def set_instructions(self):
-    #     if self.operation in ['CHAINED_ADD', 'CHAINED_SUB']:
-    #         return '\
-    #             D2*SET_ADD +\
-    #             D3*SET_COM +\
-    #             D4*SET_M \
-    #         '
-    #     else:
-    #         return '\
-    #             D2*SET_COM +\
-    #             D3*SET_M \
-    #         '
-    
     @property    
     def expected_action(self):
         return 1 + int(self.target > 5) # 0: no action, 1: LESS, 2: MORE
@@ -149,12 +119,6 @@ class AbstractXp(ABC):
     def INSTRUCTIONS_input(self,t,x):
         trial, t_in_trial = self(t)
         return trial.instructions
-    # def GET_INSTRUCTIONS_input(self,t,x):
-    #     trial, t_in_trial = self(t)
-    #     return trial.get_instructions
-    # def SET_INSTRUCTIONS_input(self,t,x):
-    #     trial, t_in_trial = self(t)
-    #     return trial.set_instructions
     def ADDEND_input(self,t,x):
         trial, t_in_trial = self(t)
         return trial.addend

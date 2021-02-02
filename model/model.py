@@ -172,26 +172,21 @@ class Model():
         net = self.network
 
         # temporary parameters
-        crosstalk = True
-        crosstalk_lr = 1e-11
+        self.crosstalk = False
+        self.crosstalk_lr = 5e-12
 
         with net:
 
             net.input_net = spa.Network(label='inputs', seed=self.seed)
 
             with net.input_net:
-                net.input_net.INSTRUCTIONS = spa.Transcode(self.experiment.INSTRUCTIONS_input, input_vocab=self.vocabs['big vocab'], output_vocab=self.vocabs['big vocab'], label='INSTRUCTIONS')
-                # net.input_net.GET_INSTRUCTIONS = spa.Transcode(self.experiment.GET_INSTRUCTIONS_input, input_vocab=self.vocabs['big vocab'], output_vocab=self.vocabs['big vocab'], label='GET INSTRUCTIONS')
-                # net.input_net.SET_INSTRUCTIONS = spa.Transcode(self.experiment.SET_INSTRUCTIONS_input, input_vocab=self.vocabs['big vocab'], output_vocab=self.vocabs['big vocab'], label='SET INSTRUCTIONS')
-            
-            with net.input_net:
-                net.input_net.RETINA_input = spa.Transcode(self.experiment.RETINA_input, input_vocab=self.vocabs['big vocab'], output_vocab=self.vocabs['big vocab'])
+                net.input_net.RETINA_input = spa.Transcode(self.experiment.RETINA_input, input_vocab=self.vocabs['GW'], output_vocab=self.vocabs['GW'])
 
             net.V = DirectProcessor(
-                self.vocabs['big vocab'], self.vocabs['big vocab'], 'V', 
+                self.vocabs['GW'], self.vocabs['GW'], 'V', 
                 receiver=False, # V only sends info to GW
                 seed=self.seed,
-                prediction_out=crosstalk,
+                prediction_out=self.crosstalk,
                 n_neurons_per_dim=self.n_neurons_per_dim
             )
             nengo.Connection(net.input_net.RETINA_input.output, net.V.input.input, synapse=None)
@@ -202,38 +197,38 @@ class Model():
 
 
             net.M = DirectProcessor(
-                self.vocabs['big vocab'], self.vocabs['big vocab'], 'M',
+                self.vocabs['GW'], self.vocabs['GW'], 'M',
                 sender=False, # M only receives info from GW
                 seed=self.seed,
                 n_neurons_per_dim=self.n_neurons_per_dim
             )
                     
             net.BTN = nengo.Node(Button(
-                SP_vectors=[self.vocabs['big vocab'].parse('LESS').v, self.vocabs['big vocab'].parse('MORE').v], 
+                SP_vectors=[self.vocabs['GW'].parse('LESS').v, self.vocabs['GW'].parse('MORE').v], 
                 trial_length=self.experiment.trial_length,
                 wait_length=self.experiment.t_start), 
                 label='button',
-                size_in=self.vocabs['big vocab'].dimensions)
+                size_in=self.vocabs['GW'].dimensions)
             nengo.Connection(net.M.output.output, net.BTN) # Connect output of M to BTN that records behavioral response
 
-            # net.ADD = ADDProcessor(
-            #     self.vocabs['big vocab'],
-            #     'ADD',
-            #     self.n_neurons_per_dim,
-            #     self.rng,
-            #     self.BG_bias,
-            #     self.BG_thr,
-            #     feedback=self.proc_feedback,
-            #     seed=self.seed
-            # )
-            # with net.input_net:
-            #     net.input_net.ADDEND = spa.Transcode(self.experiment.ADDEND_input, input_vocab=self.vocabs['big vocab'], output_vocab=self.vocabs['big vocab'], label='ADDEND')
-            # nengo.Connection(net.input_net.ADDEND.output, net.ADD.bind.input_right, synapse=None)
+            net.ADD = ADDProcessor(
+                self.vocabs['GW'],
+                'ADD',
+                self.n_neurons_per_dim,
+                self.rng,
+                self.BG_bias,
+                self.BG_thr,
+                feedback=self.proc_feedback,
+                seed=self.seed
+            )
+            with net.input_net:
+                net.input_net.ADDEND = spa.Transcode(self.experiment.ADDEND_input, input_vocab=self.vocabs['GW'], output_vocab=self.vocabs['GW'], label='ADDEND')
+            nengo.Connection(net.input_net.ADDEND.output, net.ADD.bind.input_right, synapse=None)
             
             if self.compare_tau != 0:
                 net.COM = CompareProcessor(
-                    self.vocabs['big vocab'], 
-                    self.vocabs['big vocab'], 
+                    self.vocabs['GW'], 
+                    self.vocabs['GW'], 
                     'COM',
                     self.experiment.trial_length,
                     self.experiment.t_start if self.integrator_reset else 0,
@@ -242,33 +237,33 @@ class Model():
                     self.n_samples,
                     tau=self.compare_tau,
                     seed=self.seed,
-                    prediction_in=crosstalk
+                    prediction_in=self.crosstalk
                     )
             else:
                 net.COM = AMProcessor(
-                    self.vocabs['big vocab'], self.vocabs['big vocab'], 'COM',
+                    self.vocabs['GW'], self.vocabs['GW'], 'COM',
                     {   'D2':'LESS',
                         'D4':'LESS',
                         'D6':'MORE',
                         'D8':'MORE'  },
                     n_neurons_per_dim=self.n_neurons_per_dim, seed=self.seed,
-                    prediction_in=crosstalk
+                    prediction_in=self.crosstalk
                 )
             
-            self.processors = [net.V, net.COM, net.M]#, net.ADD]
+            self.processors = [net.V, net.COM, net.M, net.ADD]
 
-            if crosstalk:
+            if self.crosstalk:
                 net.crosstalk = Prediction(
                     net.V, 
                     net.COM,
-                    rate=crosstalk_lr
+                    rate=self.crosstalk_lr
                 )
 
             net.GW = GlobalWorkspace(
-                self.vocabs['big vocab'],
+                self.vocabs['GW'],
                 mappings={
                     net.V: ['D2','D4','D6','D8','FIXATE'],
-                    # net.ADD: ['D2','D4','D6','D8'],
+                    net.ADD: ['D2','D4','D6','D8'],
                     net.COM: ['MORE','LESS'],
                 },
                 n_neurons = self.n_neurons_per_dim['AM'],
@@ -277,37 +272,28 @@ class Model():
             for detector in net.GW.detectors.values():
                 net.declare_output(detector,None)
 
-            net.POS = WM(100, self.vocabs['big vocab'])
+            net.POS = WM(200, self.vocabs['PRIM'])
             net.clean_POS = spa.WTAAssocMem(
-                threshold=.2,
+                threshold=0,
                 input_vocab=net.POS.vocab,
                 mapping=['D1','D2','D3','D4'],
                 n_neurons=self.n_neurons_per_dim['AM'],
                 function=lambda x: x>0
             )
             nengo.Connection(net.POS.output, net.clean_POS.input)
-            net.INCREMENT = WM(100, self.vocabs['big vocab'])
+            
+            net.INCREMENT = WM(200, self.vocabs['PRIM'])
 
-            net.PRIM = spa.Bind(neurons_per_dimension=self.n_neurons_per_dim['Bind'], vocab=self.vocabs['big vocab'], unbind_right=True)
-            net.GET_PRIM = spa.WTAAssocMem(
-                threshold=.5,
-                input_vocab=net.PRIM.vocab,
-                mapping=['GET_V', 'GET_COM', 'GET_ADD'],
-                n_neurons=self.n_neurons_per_dim['AM'],
-                function=lambda x: x>0
-            )
-            net.SET_PRIM = spa.WTAAssocMem(
-                threshold=.5,
-                input_vocab=net.PRIM.vocab,
-                mapping=['SET_COM', 'SET_ADD', 'SET_M'],
-                n_neurons=self.n_neurons_per_dim['AM'],
-                function=lambda x: x>0
-            )
-            net.PRIM >> net.GET_PRIM
-            net.PRIM >> net.SET_PRIM
+            nengo.Connection(net.clean_POS.output, net.INCREMENT.input, transform=net.POS.vocab.parse('D1').get_binding_matrix())
+            nengo.Connection(net.INCREMENT.output, net.POS.input)
+
+            with net.input_net:
+                net.input_net.INSTRUCTIONS = spa.Transcode(self.experiment.INSTRUCTIONS_input, input_vocab=self.vocabs['PRIM'], output_vocab=self.vocabs['PRIM'], label='INSTRUCTIONS')
+            
+            net.PRIM = spa.Bind(neurons_per_dimension=self.n_neurons_per_dim['Bind'], vocab=self.vocabs['PRIM'], unbind_right=True)
 
             net.input_net.INSTRUCTIONS >> net.PRIM.input_left
-            spa.translate(net.clean_POS, self.vocabs['big vocab']) >> net.PRIM.input_right
+            net.clean_POS >> net.PRIM.input_right
 
             # GET selector
             with spa.Network(label='GET selector', seed=self.seed) as net.GET_selector:
@@ -318,34 +304,24 @@ class Model():
                     spa.ifmax(net.GET_selector.labels[-1], self.BG_bias + net.FIXATE_detector,
                         net.V.preconscious >> net.GW.AMs[net.V].input,
                         s.D1 >> net.POS.input,
-                        s.D1 * net.clean_POS >> net.INCREMENT.input
+                        1 >> net.INCREMENT.reset
                     )
 
-                    # net.GET_selector.labels.append("GET V")
-                    # spa.ifmax(net.GET_selector.labels[-1], self.BG_bias + spa.dot(net.GET_PRIM, s.GET_V) * (1-net.GW.detectors[net.V]),
-                    #     net.V.preconscious >> net.GW.AMs[net.V].input,
-                    #     1 >> net.POS.gate,
-                    # )
-
-                    # net.GET_selector.labels.append("GET ADD")
-                    # spa.ifmax(net.GET_selector.labels[-1], self.BG_bias + spa.dot(net.GET_PRIM, s.GET_ADD) * (1-net.GW.detectors[net.ADD]),
-                    #     net.ADD.preconscious >> net.GW.AMs[net.ADD].input,
-                    #     1 >> net.POS.gate,
-                    #     s.D1 * net.clean_POS >> net.INCREMENT.input
-                    # )
+                    net.GET_selector.labels.append("GET ADD")
+                    spa.ifmax(net.GET_selector.labels[-1], self.BG_bias + spa.dot(net.PRIM, s.GET_ADD) * (1-net.GW.detectors[net.ADD]),
+                        net.ADD.preconscious >> net.GW.AMs[net.ADD].input,
+                        1 >> net.POS.gate,
+                    )
                     
                     net.GET_selector.labels.append("GET COM")
-                    spa.ifmax(net.GET_selector.labels[-1], self.BG_bias + spa.dot(net.GET_PRIM, s.GET_COM) * (1-net.GW.detectors[net.COM]),
+                    spa.ifmax(net.GET_selector.labels[-1], self.BG_bias + spa.dot(net.PRIM, s.GET_COM) * (1-net.GW.detectors[net.COM]),
                         net.COM.preconscious >> net.GW.AMs[net.COM].input,
                         1 >> net.POS.gate,
-                        s.D1 * net.clean_POS >> net.INCREMENT.input
                     )
 
                     net.GET_selector.labels.append("Thresholder")
                     spa.ifmax(net.GET_selector.labels[-1], self.BG_bias + self.BG_thr,
                         1 >> net.INCREMENT.gate,
-                        net.INCREMENT >> net.POS.input
-
                     )
 
             # SET selector
@@ -353,23 +329,23 @@ class Model():
                 net.SET_selector.labels = []
                 with spa.ActionSelection() as net.SET_selector.AS:
 
-                    # net.SET_selector.labels.append("SET ADD")
-                    # spa.ifmax(net.SET_selector.labels[-1], self.BG_bias + spa.dot(net.SET_PRIM, s.SET_ADD) * (1-net.GW.detectors[net.ADD]),
-                    #     net.GW.AMs[net.COM] >> net.ADD.broadcast,
-                    #     net.GW.AMs[net.V] >> net.ADD.broadcast,
-                    # )
+                    net.SET_selector.labels.append("SET ADD")
+                    spa.ifmax(net.SET_selector.labels[-1], self.BG_bias + spa.dot(net.PRIM, s.SET_ADD) * (1-net.GW.detectors[net.ADD]),
+                        net.GW.AMs[net.COM] >> net.ADD.broadcast,
+                        net.GW.AMs[net.V] >> net.ADD.broadcast,
+                    )
                     
                     net.SET_selector.labels.append("SET COM")
-                    spa.ifmax(net.SET_selector.labels[-1], self.BG_bias + spa.dot(net.SET_PRIM, s.SET_COM) * (1-net.GW.detectors[net.COM]),
-                        # net.GW.AMs[net.ADD] >> net.COM.broadcast,
+                    spa.ifmax(net.SET_selector.labels[-1], self.BG_bias + spa.dot(net.PRIM, s.SET_COM) * (1-net.GW.detectors[net.COM]),
+                        net.GW.AMs[net.ADD] >> net.COM.broadcast,
                         net.GW.AMs[net.V] >> net.COM.broadcast,
                     )
 
                     net.SET_selector.labels.append("SET M")
-                    spa.ifmax(net.SET_selector.labels[-1], self.BG_bias + spa.dot(net.SET_PRIM, s.SET_M),
+                    spa.ifmax(net.SET_selector.labels[-1], self.BG_bias + spa.dot(net.PRIM, s.SET_M),
                         net.GW.AMs[net.COM] >> net.M.broadcast,
                         net.GW.AMs[net.V] >> net.M.broadcast,
-                        # net.GW.AMs[net.ADD] >> net.M.broadcast,
+                        net.GW.AMs[net.ADD] >> net.M.broadcast,
                     )
 
                     net.SET_selector.labels.append("Thresholder")
@@ -418,9 +394,14 @@ class Model():
                 for p in self.senders:
                     self.probes[p]['preconscious'] = nengo.Probe(p.preconscious.output, synapse=synapse)
 
-                # for p in self.receivers:
-                #     self.probes[p]['broadcast'] = nengo.Probe(p.broadcast.output, synapse=synapse)
-                
+                for p in self.processors:
+                    if p.prediction_in:
+                        self.probes[p]['prediction in'] = nengo.Probe(p.prediction_in_ens, synapse=synapse)
+                    if p.prediction_out:
+                        self.probes[p]['prediction out'] = nengo.Probe(p.prediction_out_ens, synapse=synapse)
+
+                self.probes[net.ADD]['addend'] = nengo.Probe(net.ADD.bind.input_right, synapse=synapse)
+
                 if self.compare_tau != 0:
                     self.probes[net.COM]['compared'] = nengo.Probe(net.COM.compared, synapse=synapse)
                     self.probes[net.COM]['integrator'] = nengo.Probe(net.COM.integrator, synapse=synapse)
@@ -433,10 +414,15 @@ class Model():
                 
 
                 # instruction-following system
-                self.probes.update({net.POS: nengo.Probe(net.POS.output, synapse=synapse)})
-                self.probes.update({net.INCREMENT: nengo.Probe(net.INCREMENT.output, synapse=synapse)})
-                self.probes.update({net.GET_PRIM: nengo.Probe(net.GET_PRIM.output, synapse=synapse)})
-                self.probes.update({net.SET_PRIM: nengo.Probe(net.SET_PRIM.output, synapse=synapse)})
+                self.probes.update({wm: 
+                    {
+                        'in': nengo.Probe(wm.input, synapse=synapse),
+                        'gate': nengo.Probe(wm.gate, synapse=synapse),
+                        'out': nengo.Probe(wm.output, synapse=synapse)
+                    }
+                    for wm in [net.POS, net.INCREMENT]})
+                self.probes.update({clean: nengo.Probe(clean.output, synapse=synapse) for clean in [net.clean_POS]})
+                self.probes.update({net.PRIM: nengo.Probe(net.PRIM.output, synapse=synapse)})
                         
                 # Action selection networks
                 self.probes.update({AS_net: {'in': nengo.Probe(AS_net.AS.bg.input, synapse=synapse),
